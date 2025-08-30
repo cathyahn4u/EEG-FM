@@ -1,0 +1,12 @@
+torch
+lightning
+mne
+numpy
+einops
+pyyaml
+scikit-learn
+torchmetrics
+moabb
+vector-quantize-pytorch
+transformers
+sentencepiece

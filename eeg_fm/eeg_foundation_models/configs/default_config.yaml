@@ -1,0 +1,120 @@
+# ------------------- Model Selection -------------------
+# 사용할 모델을 선택합니다. ('ALFEE', 'CBraMod', 'LaBraM', 'NeuroLM')
+model_selection: 'ALFEE'
+
+# ------------------- Model Configurations (Architecture-specific) -------------------
+# 각 모델의 아키텍처와 직접 관련된 하이퍼파라미터를 정의합니다.
+model:
+  ALFEE:
+    params:
+      dim: 512
+      num_channels: 90
+      patch_size: 256
+      channel_blocks: 2
+      temporal_blocks: 7
+      decoder_blocks: 4
+      heads: 8
+      # Multi-Scale Conv 파라미터
+      msc_n_convs: 3
+      msc_kernel_sizes: [7, 11, 15]
+      msc_strides: [1, 1, 1]
+      msc_out_channels: 128
+      # PSD 파라미터
+      psd_n_fft: 256
+      psd_hop_length: 64
+  CBraMod:
+    params:
+      num_channels: 22
+      embedding_dim: 128
+      depth: 4
+      heads: 8
+      finetune_head_mode: 'cls_token' # 'cls_token' 또는 'mean_pool' 선택
+  LaBraM:
+    params:
+      num_channels: 90
+      d_model: 256
+      nhead: 8
+      num_encoder_layers: 6
+      dim_feedforward: 1024
+      num_vq: 1
+      codebook_size: 1024
+  NeuroLM:
+    params:
+      eeg_encoder_params: ${model.LaBraM.params}
+      llm_name: 'gpt2'
+      projection_dim: 768
+
+# ------------------- Training Configurations -------------------
+training:
+  pretrain:
+    batch_size: 32
+    epochs: 100
+    learning_rate: 1.0e-4
+    cbramod_mode: 'self-supervised'
+    mask_ratio: 0.50
+    # ALFEE 손실 가중치
+    lambda_gpt: 0.4
+    lambda_mae_tp: 0.275
+    lambda_mae_ch: 0.275
+    lambda_dt: 0.05
+  finetune:
+    batch_size: 16
+    epochs: 50
+    learning_rate: 5.0e-5
+    alpha_cls_loss: 0.9
+    checkpoint_path: null
+    original_ckpt_path: null
+  common:
+    accelerator: 'gpu'
+    devices: 1
+    precision: '16-mixed'
+    patience: 10
+
+# ------------------- Data & Dataset Configurations -------------------
+data:
+  fs: 256
+  num_workers: 4
+
+datasets:
+  properties:
+    TUEG: { path: '/path/to/TUEG', num_classes: 1, task_type: 'Clinical' }
+    BCICompetitionIV2a: { path: '~/mne_data/MNE-bnci-data/physiobank/database/eegmmidb/', num_classes: 4, task_type: 'MotorImagery' }
+    GISTSMRBCI: { path: '/path/to/GIST_SMR_BCI/', num_classes: 2, task_type: 'MotorImagery' }
+    TUAB: { path: '/path/to/TUAB', num_classes: 2, task_type: 'Clinical' }
+    TUEV: { path: '/path/to/TUEV', num_classes: 6, task_type: 'Artifact' }
+    TUSL: { path: '/path/to/TUSL', num_classes: 3, task_type: 'Seizure' }
+    SEED: { path: '/path/to/SEED', num_classes: 3, task_type: 'Emotion' }
+    HMC: { path: '/path/to/HMC', num_classes: 5, task_type: 'Sleep' }
+    Workload: { path: '/path/to/Workload', num_classes: 2, task_type: 'Workload' }
+    PhysioNetMI: { path: '/path/to/physionet_mi', num_classes: 4, task_type: 'MotorImagery' }
+    FACED: { path: '/path/to/FACED', num_classes: 2, task_type: 'Emotion' }
+    SEED-IV: { path: '/path/to/SEED-IV', num_classes: 4, task_type: 'Emotion' }
+  
+  lists:
+    self_supervised_pretrain:
+      - TUEG
+      - SEED-IV
+      - PhysioNetMI
+      - FACED
+    supervised_pretrain:
+      - BCICompetitionIV2a
+    finetune:
+      - TUAB
+      - TUEV
+      - TUSL
+      - SEED
+      - HMC
+      - Workload
+      - PhysioNetMI
+      - FACED
+      - BCICompetitionIV2a
+      - GISTSMRBCI
+  
+  task_type_map: # ALFEE의 L_DT 손실을 위한 데이터셋 타입 매핑
+    Clinical: 0
+    MotorImagery: 1
+    Artifact: 2
+    Seizure: 3
+    Emotion: 4
+    Sleep: 5
+    Workload: 6
